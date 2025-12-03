@@ -1,181 +1,198 @@
+# Task 1 — Strapi Application Setup & Sample Article
 
-# Welcome to PearlThoughts Internship Program
+This repository contains a Strapi **v5.x** application prepared for the internship assignment.
+It includes a sample collection type `Article`, sample entries, and the minimal project files required to run the app locally.
 
-We are thrilled to welcome you to the PearlThoughts team! This internship is designed to provide you with valuable hands-on experience, deepen your understanding of technology, and help you hone your skills in a collaborative, innovative environment.
+---
 
-# Policies and Guidelines
+## Overview
 
-## Training and Attendance
+What this repo contains:
 
-### Training Sessions
-- **Schedule**: Every weekday at 10:30 AM 
-- **Attendance**: MANDATORY - Missing sessions affects your evaluation
-- **Duration**: Full attention required during training hours
+* A Strapi app scaffolded locally
+* An `Article` collection type with fields: `title` (short text), `content` (rich text), `published` (boolean)
+* Sample article entries created via the Strapi admin UI
+* Files pushed to branch `Shantanu` for PR
 
-### Working Hours
-- **Availability**: 10 AM to 6 PM on all working days
-- **Active Participation**: Required in all team activities and discussions
+---
 
-## Daily Requirements
+## Prerequisites
 
-### 📝 Pull Requests (PR)
-- **Deadline**: Must be raised by end of each day
-- **Content**: Include all work completed during the day
-- **Consequence**: No PR = Marked absent for that day
+Make sure you have:
 
-### 📋 Status Updates
-- Post daily progress in your team channel
-- Use the [[../Templates/Daily-Status-Template|Daily Status Template]]
-- Be specific about completed tasks and blockers
+* Node.js (LTS recommended) installed
+* npm (or yarn)
+* Git installed
+* (Optional) Docker if you prefer containerized runs
 
-## Task Management
+---
 
-### Assigned Tasks
-- Tasks assigned during morning training sessions
-- **Timely Completion**: Critical for your evaluation
-- Document challenges and solutions
+## Quick Setup — Commands used
 
-### Task Tracking
-- Update task status regularly
-- Communicate blockers immediately
-- Seek help when needed
+Below are the exact commands used to create, run and push the project. Run these from a terminal in the folder where you want the project.
 
-## Evaluation Process
+### 1. Create a new Strapi project (example)
 
-### Weekly Evaluations
-- **When**: Every Friday
-- **Criteria**:
-  - Task completion and quality
-  - Collaboration and teamwork
-  - Learning progress
-  - Professional conduct
+> This is an example used if you want to create a project from scratch. Skip if you already have the project folder.
 
-### Performance Metrics
-- Code quality and best practices
-- Meeting deadlines
-- Communication effectiveness
-- Problem-solving approach
+```bash
+# Using npm (Strapi installer approach may vary)
+npx create-strapi@latest my-strapi-app --quickstart
+# or if you want TypeScript or specific options, configure accordingly
+```
 
-## Communication Channels
+> In this assignment we used a standard Strapi project scaffold that results in the project folder: `my-strapi-app/`.
 
-### MS Teams Channels
+### 2. Start Strapi (developer mode)
 
-| Channel | Purpose |
-|---------|------|
-| **Internship** | Key updates and announcements |
-| **Support** | Cloud resources and technical guidance |
-| **DevOps** | Deployment assistance and DevOps queries |
-| **Team [Name]** | Your team's collaboration space |
+Run from the project root:
 
-### Email Communication
-- **Support Queries**: hr@pearlthoughts.com
-- **Topics**: LOA requests, Teams access, evaluation results
-- **Important**: Avoid raising these in training sessions or Teams channels
+```bash
+# If package.json has the develop script
+npm run develop
+# or with yarn
+yarn develop
+```
 
-## Termination Policy
-
-### ⚠️ Automatic Termination Triggers
-- Missing 3 consecutive training sessions
-- Failing to submit PR for 3 consecutive days
-- No prior notice will be given
-
-## Professional Conduct
-
-### Expected Behavior
-1. **Professionalism**: Maintain professional demeanor in all interactions
-2. **Respect**: Treat all team members with respect
-3. **Punctuality**: Be on time for all meetings and deadlines
-4. **Integrity**: Be honest about your progress and challenges
-5. **Collaboration**: Actively help and learn from peers
-
-## Support Resources
-
-### Getting Help
-- Technical issues: Post in Support channel
-- DevOps help: Use DevOps channel
-- Administrative queries: Email hr@pearlthoughts.com
-- Task clarification: Ask your mentor during training
-
-## Best Practices
-
-### Code Quality
-- Follow project coding standards
-- Write clean, documented code
-- Test your changes before PR
-- Review peers' code constructively
-
-### Documentation
-- Document your learning journey
-- Share helpful resources with team
-- Maintain clear commit messages
-- Update project documentation
-
-## Your Journey Starts Here
-
-We are excited to have you on board and look forward to seeing you grow and succeed during your time with us. 
-
-**Welcome to PearlThoughts—let's embark on this journey together!**
-# The-Config-Crew
-=======
-# 🚀 Getting started with Strapi
-
-Strapi comes with a full featured [Command Line Interface](https://docs.strapi.io/dev-docs/cli) (CLI) which lets you scaffold and manage your project in seconds.
-
-### `develop`
-
-Start your Strapi application with autoReload enabled. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-develop)
+The admin UI opens at:
 
 ```
+http://localhost:1337/admin
+```
+
+When prompted on first run, register an admin user (email + password) in the admin UI.
+
+### 3. Create content type (via Admin UI)
+
+In the browser admin UI:
+
+1. Go to **Content-Type Builder** → **Create collection type**.
+2. Enter display name: `Article`.
+3. Add fields:
+
+   * `title` — Text (Short text)
+   * `content` — Rich Text (or Long Text / Rich Text)
+   * `published` — Boolean
+4. Save (Strapi will rebuild admin UI automatically).
+
+### 4. Add sample content (via Admin UI)
+
+* Go to **Content Manager** → **Article** → **Create new entry**
+* Fill sample data and click **Publish** (or Save & Publish).
+
+### 5. Test API endpoints
+
+Example GET (public or role-limited depending on permissions):
+
+```bash
+# Basic curl while running locally
+curl -s http://localhost:1337/api/articles | jq .
+```
+
+If `jq` is not installed you will see JSON raw output:
+
+```bash
+curl -s http://localhost:1337/api/articles
+```
+
+The response should include your sample articles.
+
+---
+
+## Git workflow used for this submission
+
+Commands executed locally to push your changes to the internship repository:
+
+```bash
+# inside project root
+git init                        # if not already a repo
+git remote add origin <repo-url>   # set remote to the organization repo
+git fetch origin
+git checkout -b Shantanu origin/Shantanu  # create branch tracking remote (or create new local branch)
+# stage and commit your project files (exclude node_modules)
+git add .
+git commit -m "Add Strapi setup and sample article"
+git push -u origin Shantanu
+```
+
+After `git push`, open the repository on GitHub and click the green **Compare & pull request** button to create the PR from branch `Shantanu` into `main` (or as instructed by the mentor).
+
+> **Important:** Keep `.env` secrets out of Git. `.gitignore` should include `node_modules/`, `.env`, and other local artifacts.
+
+---
+
+## File structure (current — updated)
+
+```
+my-strapi-app/
+├─ config/
+│   └─ ... Strapi config files
+├─ database/
+│   └─ migrations/
+├─ public/
+│   └─ static assets (favicon, etc.)
+├─ src/
+│   ├─ api/
+│   │   └─ article/
+│   │       ├─ content-types/
+│   │       │    └─ article/      # schema JSON for Article
+│   │       ├─ controllers/
+│   │       ├─ routes/
+│   │       └─ services/
+│   └─ ... other Strapi source files
+├─ types/
+│   └─ generated/
+│       ├─ contentTypes.d.ts
+│       └─ components.d.ts
+├─ .env.example
+├─ .gitignore
+├─ README.md
+├─ package.json
+├─ package-lock.json
+├─ tsconfig.json
+└─ favicon.png
+```
+
+---
+
+## How to reproduce locally (step-by-step)
+
+1. Clone the repo or copy the project folder to your machine:
+
+```bash
+git clone <org-repo-url>
+cd The-Monitor-Hub
+git checkout -b Shantanu origin/Shantanu   # or git checkout Shantanu if created
+```
+
+2. Install dependencies:
+
+```bash
+# from project root
+npm install
+# or
+yarn
+```
+
+3. Create `.env` (copy `.env.example` to `.env`) and configure DB / ports if required.
+
+4. Run Strapi in dev mode:
+
+```bash
 npm run develop
 # or
 yarn develop
 ```
 
-### `start`
-
-Start your Strapi application with autoReload disabled. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-start)
-
-```
-npm run start
-# or
-yarn start
-```
-
-### `build`
-
-Build your admin panel. [Learn more](https://docs.strapi.io/dev-docs/cli#strapi-build)
-
-```
-npm run build
-# or
-yarn build
-```
-
-## ⚙️ Deployment
-
-Strapi gives you many possible deployment options for your project including [Strapi Cloud](https://cloud.strapi.io). Browse the [deployment section of the documentation](https://docs.strapi.io/dev-docs/deployment) to find the best solution for your use case.
-
-```
-yarn strapi deploy
-```
-
-## 📚 Learn more
-
-- [Resource center](https://strapi.io/resource-center) - Strapi resource center.
-- [Strapi documentation](https://docs.strapi.io) - Official Strapi documentation.
-- [Strapi tutorials](https://strapi.io/tutorials) - List of tutorials made by the core team and the community.
-- [Strapi blog](https://strapi.io/blog) - Official Strapi blog containing articles made by the Strapi team and the community.
-- [Changelog](https://strapi.io/changelog) - Find out about the Strapi product updates, new features and general improvements.
-
-Feel free to check out the [Strapi GitHub repository](https://github.com/strapi/strapi). Your feedback and contributions are welcome!
-
-## ✨ Community
-
-- [Discord](https://discord.strapi.io) - Come chat with the Strapi community including the core team.
-- [Forum](https://forum.strapi.io/) - Place to discuss, ask questions and find answers, show your Strapi project and get feedback or just talk with other Community members.
-- [Awesome Strapi](https://github.com/strapi/awesome-strapi) - A curated list of awesome things related to Strapi.
+5. Visit `http://localhost:1337/admin`, sign in, and you should see your `Article` in Content Manager.
 
 ---
 
-<sub>🤫 Psst! [Strapi is hiring](https://strapi.io/careers).</sub>
- 2809cb3 (Initial commit from Strapi)
+## What I verified here
+
+* Admin panel accessible and admin user created.
+* `Article` collection type added with fields: title, content, published.
+* Sample entries created and visible via API `GET /api/articles`.
+* Repo pushed to the `Shantanu` branch and PR created for review.
+
+---
