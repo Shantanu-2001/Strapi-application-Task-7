@@ -326,81 +326,107 @@ CMD runs once when container starts.
 
 ---
 
-<br>
+Here is **only the content you asked for** — the **five types of Docker networking**, each explained with a **small clear paragraph + a practical example**.
+You can directly paste this into your README.md.
 
-# **6. Docker Networking**
+---
+# Docker Networking
+## **Docker Networking Types (With Examples)**
 
-Docker provides multiple network types:
+## **1. Bridge Network (Default)**
+
+The **bridge network** is Docker’s default networking mode. Containers connected to a bridge network can communicate with each other using their container names, while also staying isolated from containers on other networks. This mode is ideal for running multi-container applications on a single host during development.
+
+**Example:**
+
+```bash
+docker network create mybridge
+docker run -d --name app1 --network mybridge nginx
+docker run -d --name app2 --network mybridge nginx
+```
+
+Here, `app1` can reach `app2` using:
+
+```
+http://app2
+```
 
 ---
 
-## **A. Bridge Network (Default)**
+## **2. Host Network**
 
-Default when you run:
+In host mode, Docker **removes the network isolation** and the container directly uses the host’s networking stack. This means the container will share the host’s IP address, and any ports used inside the container are directly accessible from the host without port mapping. It's useful for high-performance networking or running system-level applications.
 
-```
-docker run nginx
-```
+**Example:**
 
-* Containers can talk to each other using container names.
-* Example:
-  Backend calls DB using:
-
-  ```
-  http://mysql:3306
-  ```
-
----
-
-## **B. Host Network**
-
-Container uses host’s network stack.
-
-```
+```bash
 docker run --network host nginx
 ```
 
-* No isolation
-* High performance
-* Port mapping not required
+Nginx will be available directly on host’s port 80 — **without writing `-p 80:80`**.
 
 ---
 
-## **C. None Network**
+## **3. None Network**
 
-Container has no network.
+The `none` network gives a container **no external networking** at all. The container has its own network namespace but no interfaces except the loopback interface (`lo`). This is useful for security-sensitive workloads, testing isolated environments, or running containers that don’t need any network.
+
+**Example:**
+
+```bash
+docker run -it --network none ubuntu
+```
+
+Inside the container:
 
 ```
-docker run --network none ubuntu
+ping google.com → will not work
 ```
-
-Useful for isolation or testing.
 
 ---
 
-## **D. Overlay Network**
+## **4. Overlay Network**
 
-For **multi-node Docker Swarm / Kubernetes** clusters.
+The **overlay network** is used in distributed environments (Docker Swarm or multi-host setups). It allows containers running on different physical or virtual machines to communicate with each other securely. Docker handles all routing, encryption, and node-to-node communication automatically.
+
+**Example (Swarm Mode):**
+
+```bash
+docker swarm init
+docker network create -d overlay myoverlay
+docker service create --name web --network myoverlay nginx
+docker service create --name api --network myoverlay node:18
+```
+
+Here, the `web` service can reach the `api` service using:
+
+```
+http://api
+```
+
+even if they are on **different machines**.
 
 ---
 
-## **E. Custom Bridge Networks**
+## **5. Custom Bridge Network**
 
-Recommended for microservices.
+A **custom bridge network** is similar to the default bridge network but gives more control, allowing you to define DNS resolution, IP ranges, and communication rules. Containers on the same custom network can resolve each other by name, making it perfect for microservices.
 
-Example:
+**Example:**
+
+```bash
+docker network create appnet
+docker run -d --name backend --network appnet node:18
+docker run -d --name database --network appnet mongo
+```
+
+Inside backend container, you can connect to MongoDB using:
 
 ```
-docker network create mynet
-docker run --network mynet --name app1 nginx
-docker run --network mynet --name app2 nginx
+mongodb://database:27017
 ```
-
-Both containers can resolve each other by name.
 
 ---
-
-<br>
 
 # **7. Docker Volumes & Persistence**
 
