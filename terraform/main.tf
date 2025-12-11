@@ -13,6 +13,11 @@ provider "aws" {
 }
 
 # -------------------------
+# Get AWS Account ID
+# -------------------------
+data "aws_caller_identity" "current" {}
+
+# -------------------------
 # Ubuntu 22.04 AMI
 # -------------------------
 data "aws_ami" "ubuntu" {
@@ -25,6 +30,9 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# -------------------------
+# VPC & Subnets
+# -------------------------
 data "aws_vpc" "default" {
   default = true
 }
@@ -36,12 +44,42 @@ data "aws_subnets" "default_subnets" {
   }
 }
 
-# -------------------------
-# EC2 Security Group (Shantanu)
-# -------------------------
+# ============================================================
+# IAM ROLE + INSTANCE PROFILE FOR EC2 (MUST FOR ECR ACCESS)
+# ============================================================
+
+resource "aws_iam_role" "ec2_role" {
+  name = "ec2-ecr-role-shantanu"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecr_read" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "ec2-instance-profile-shantanu"
+  role = aws_iam_role.ec2_role.name
+}
+
+# ============================================================
+# SECURITY GROUPS — EC2 & RDS
+# ============================================================
+
 resource "aws_security_group" "strapi_sg" {
   name        = "strapi-sg-shantanu"
-  description = "Allow Strapi and SSH"
+  description = "Allow HTTP & SSH for Strapi"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -66,12 +104,9 @@ resource "aws_security_group" "strapi_sg" {
   }
 }
 
-# -------------------------
-# RDS Security Group (Shantanu)
-# -------------------------
 resource "aws_security_group" "strapi_rds_sg" {
   name        = "strapi-rds-sg-shantanu"
-  description = "Allow EC2 to access RDS"
+  description = "Allow EC2 to reach RDS"
   vpc_id      = data.aws_vpc.default.id
 
   egress {
@@ -82,9 +117,6 @@ resource "aws_security_group" "strapi_rds_sg" {
   }
 }
 
-# -------------------------
-# Allow EC2 → RDS
-# -------------------------
 resource "aws_security_group_rule" "allow_ec2_to_rds" {
   type                     = "ingress"
   from_port                = 5432
@@ -94,17 +126,15 @@ resource "aws_security_group_rule" "allow_ec2_to_rds" {
   source_security_group_id = aws_security_group.strapi_sg.id
 }
 
-# -------------------------
-# RDS Subnet Group (Shantanu)
-# -------------------------
+# ============================================================
+# RDS SUBNET GROUP + RDS INSTANCE
+# ============================================================
+
 resource "aws_db_subnet_group" "strapi_db_subnet_group" {
   name       = "strapi-db-subnet-group-shantanu"
   subnet_ids = data.aws_subnets.default_subnets.ids
 }
 
-# -------------------------
-# RDS PostgreSQL Instance (Shantanu)
-# -------------------------
 resource "aws_db_instance" "strapi_rds" {
   identifier              = "strapi-db-shantanu"
   allocated_storage       = 20
@@ -119,28 +149,30 @@ resource "aws_db_instance" "strapi_rds" {
   db_subnet_group_name    = aws_db_subnet_group.strapi_db_subnet_group.name
 }
 
-# -------------------------
-# USER DATA — Install Docker + Run Strapi
-# -------------------------
+# ============================================================
+# USER-DATA → INSTALL DOCKER, LOGIN TO ECR, RUN STRAPI
+# ============================================================
+
 locals {
   user_data = <<-EOF
               #!/bin/bash
-
               apt-get update -y
-              apt-get install -y docker.io
+              apt-get install -y docker.io awscli
 
               systemctl start docker
               systemctl enable docker
-
               usermod -aG docker ubuntu
 
-              # Pull Strapi image
-              docker pull ${var.docker_image}
+              # Login to ECR
+              aws ecr get-login-password --region ${var.aws_region} \
+                | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
 
-              # Wait for RDS to be ready
-              sleep 90
+              # Pull your image
+              docker pull ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/strapi-repo-shantanu:latest
 
-              # Run Strapi container with RDS SSL settings
+              # Wait for RDS to initialize
+              sleep 60
+
               docker run -d -p 1337:1337 \
                 --name strapi \
                 -e DATABASE_CLIENT=postgres \
@@ -153,13 +185,14 @@ locals {
                 -e DATABASE_SSL__REJECT_UNAUTHORIZED=false \
                 -e HOST=0.0.0.0 \
                 -e PORT=1337 \
-                ${var.docker_image}
+                ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/strapi-repo-shantanu:latest
               EOF
 }
 
-# -------------------------
-# EC2 INSTANCE (Shantanu)
-# -------------------------
+# ============================================================
+# EC2 INSTANCE
+# ============================================================
+
 resource "aws_instance" "strapi" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
@@ -167,9 +200,12 @@ resource "aws_instance" "strapi" {
   key_name                    = var.key_name
   associate_public_ip_address = true
 
-  user_data = local.user_data
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
+  user_data            = local.user_data
 
   tags = {
-    Name = "strapi-ubuntu-ec2-shantanu"
+    Name = "strapi-ec2-shantanu"
   }
 }
+
+
