@@ -1,13 +1,13 @@
-name: CD - Terraform manual deploy
+name: CD - Terraform manual deploy (use existing TF)
 
 on:
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: 'Full ECR image URI (e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com/strapi-app:xxxx)'
+      key_name:
+        description: 'Existing EC2 key pair name to use for SSH (required by TF var key_name)'
         required: true
       tf_auto_approve:
-        description: 'Auto-approve terraform apply?'
+        description: 'Auto approve terraform.apply?'
         required: false
         default: 'true'
 
@@ -17,7 +17,6 @@ permissions:
 jobs:
   terraform:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -40,15 +39,16 @@ jobs:
 
       - name: Terraform plan
         working-directory: ./terraform
-        run: terraform plan -input=false -var="container_image=${{ github.event.inputs.image_tag }}"
+        run: terraform plan -input=false -var="key_name=${{ github.event.inputs.key_name }}"
 
       - name: Terraform apply (auto)
         if: ${{ github.event.inputs.tf_auto_approve == 'true' }}
         working-directory: ./terraform
-        run: terraform apply -input=false -auto-approve -var="container_image=${{ github.event.inputs.image_tag }}"
+        run: terraform apply -input=false -auto-approve -var="key_name=${{ github.event.inputs.key_name }}"
 
       - name: Terraform apply (manual)
         if: ${{ github.event.inputs.tf_auto_approve != 'true' }}
         working-directory: ./terraform
-        run: terraform apply -input=false -var="container_image=${{ github.event.inputs.image_tag }}"
+        run: terraform apply -input=false -var="key_name=${{ github.event.inputs.key_name }}"
+
 
