@@ -80,7 +80,7 @@ resource "aws_iam_role_policy_attachment" "ecr_read" {
 }
 
 resource "aws_iam_instance_profile" "ec2_profile" {
-  name = "ec2-instance-profile-shantanu"
+  name = "ec2-instance-profile-shantanu-rana"
   role = aws_iam_role.ec2_role.name
 }
 
