@@ -5,12 +5,9 @@ terraform {
       version = "~> 5.0"
     }
   }
-  required_version = ">= 1.3.0"
-}
 
-provider "aws" {
-  region = var.aws_region
-}
+  required_version = ">= 1.3.0"
+
   backend "s3" {
     bucket         = "shantanu-terraform-state"
     key            = "terraform/state"
@@ -19,6 +16,12 @@ provider "aws" {
   }
 }
 
+# -------------------------
+# AWS Provider
+# -------------------------
+provider "aws" {
+  region = var.aws_region
+}
 
 # -------------------------
 # Get AWS Account ID
@@ -53,7 +56,7 @@ data "aws_subnets" "default_subnets" {
 }
 
 # ============================================================
-# IAM ROLE + INSTANCE PROFILE FOR EC2 (MUST FOR ECR ACCESS)
+# IAM ROLE + INSTANCE PROFILE FOR EC2 (ECR ACCESS)
 # ============================================================
 
 resource "aws_iam_role" "ec2_role" {
@@ -116,13 +119,6 @@ resource "aws_security_group" "strapi_rds_sg" {
   name        = "strapi-rds-sg-shantanu"
   description = "Allow EC2 to reach RDS"
   vpc_id      = data.aws_vpc.default.id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
 
 resource "aws_security_group_rule" "allow_ec2_to_rds" {
@@ -144,57 +140,54 @@ resource "aws_db_subnet_group" "strapi_db_subnet_group" {
 }
 
 resource "aws_db_instance" "strapi_rds" {
-  identifier              = "strapi-db-shantanu"
-  allocated_storage       = 20
-  engine                  = "postgres"
-  instance_class          = "db.t3.micro"
-  username                = "strapi"
-  password                = "strapi123"
-  db_name                 = "strapi_db"
-  skip_final_snapshot     = true
-  publicly_accessible     = false
-  vpc_security_group_ids  = [aws_security_group.strapi_rds_sg.id]
-  db_subnet_group_name    = aws_db_subnet_group.strapi_db_subnet_group.name
+  identifier             = "strapi-db-shantanu"
+  allocated_storage      = 20
+  engine                 = "postgres"
+  instance_class         = "db.t3.micro"
+  username               = "strapi"
+  password               = "strapi123"
+  db_name                = "strapi_db"
+  skip_final_snapshot    = true
+  publicly_accessible    = false
+  vpc_security_group_ids = [aws_security_group.strapi_rds_sg.id]
+  db_subnet_group_name   = aws_db_subnet_group.strapi_db_subnet_group.name
 }
 
 # ============================================================
-# USER-DATA → INSTALL DOCKER, LOGIN TO ECR, RUN STRAPI
+# USER DATA
 # ============================================================
 
 locals {
   user_data = <<-EOF
-              #!/bin/bash
-              apt-get update -y
-              apt-get install -y docker.io awscli
+    #!/bin/bash
+    apt-get update -y
+    apt-get install -y docker.io awscli
 
-              systemctl start docker
-              systemctl enable docker
-              usermod -aG docker ubuntu
+    systemctl start docker
+    systemctl enable docker
+    usermod -aG docker ubuntu
 
-              # Login to ECR
-              aws ecr get-login-password --region ${var.aws_region} \
-                | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
+    aws ecr get-login-password --region ${var.aws_region} \
+      | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
 
-              # Pull your image
-              docker pull ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/strapi-repo-shantanu:latest
+    docker pull ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/strapi-repo-shantanu:latest
 
-              # Wait for RDS to initialize
-              sleep 60
+    sleep 60
 
-              docker run -d -p 1337:1337 \
-                --name strapi \
-                -e DATABASE_CLIENT=postgres \
-                -e DATABASE_HOST=${aws_db_instance.strapi_rds.address} \
-                -e DATABASE_PORT=5432 \
-                -e DATABASE_NAME=strapi_db \
-                -e DATABASE_USERNAME=strapi \
-                -e DATABASE_PASSWORD=strapi123 \
-                -e DATABASE_SSL=true \
-                -e DATABASE_SSL__REJECT_UNAUTHORIZED=false \
-                -e HOST=0.0.0.0 \
-                -e PORT=1337 \
-                ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/strapi-repo-shantanu:latest
-              EOF
+    docker run -d -p 1337:1337 \
+      --name strapi \
+      -e DATABASE_CLIENT=postgres \
+      -e DATABASE_HOST=${aws_db_instance.strapi_rds.address} \
+      -e DATABASE_PORT=5432 \
+      -e DATABASE_NAME=strapi_db \
+      -e DATABASE_USERNAME=strapi \
+      -e DATABASE_PASSWORD=strapi123 \
+      -e DATABASE_SSL=true \
+      -e DATABASE_SSL__REJECT_UNAUTHORIZED=false \
+      -e HOST=0.0.0.0 \
+      -e PORT=1337 \
+      ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/strapi-repo-shantanu:latest
+  EOF
 }
 
 # ============================================================
@@ -215,5 +208,3 @@ resource "aws_instance" "strapi" {
     Name = "strapi-ec2-shantanu"
   }
 }
-
-
