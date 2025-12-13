@@ -49,7 +49,7 @@ data "aws_subnets" "default_subnets" {
 # ============================================================
 
 resource "aws_iam_role" "ec2_role" {
-  name = "ec2-ecr-role-shantanu"
+  name = "ec2-ecr-role-shantanuu"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
