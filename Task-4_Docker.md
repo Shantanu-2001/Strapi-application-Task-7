@@ -4,7 +4,7 @@
 
 Before Docker, developers relied largely on **Virtual Machines (VMs)** to isolate applications. But VMs are *heavy*, *slow*, and *resource-intensive*. Teams faced serious issues :
 
-### **A. “Works on my machine” Problem ->**
+### **A. “Works on my machine” Problem **
 
 Applications behaved differently on different systems because of:
 
