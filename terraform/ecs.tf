@@ -1,7 +1,18 @@
+# =========================
+# ECS Cluster
+# =========================
 resource "aws_ecs_cluster" "strapi" {
   name = "strapi-cluster-shantanu"
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
+# =========================
+# Security Group for ECS
+# =========================
 resource "aws_security_group" "ecs_sg" {
   name   = "strapi-ecs-sg-shantanu"
   vpc_id = data.aws_vpc.default.id
@@ -21,6 +32,9 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
+# =========================
+# ECS Task Definition
+# =========================
 resource "aws_ecs_task_definition" "strapi" {
   family                   = "strapi-task"
   requires_compatibilities = ["FARGATE"]
@@ -28,9 +42,8 @@ resource "aws_ecs_task_definition" "strapi" {
   cpu                      = "512"
   memory                   = "1024"
 
-  # ✅ FIX IS HERE
-  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn      = aws_iam_role.ecs_task_execution_role.arn
+  execution_role_arn = var.ecs_execution_role_arn
+  task_role_arn      = var.ecs_execution_role_arn
 
   container_definitions = jsonencode([
     {
@@ -40,22 +53,44 @@ resource "aws_ecs_task_definition" "strapi" {
       portMappings = [
         {
           containerPort = 1337
-          hostPort      = 1337
+          protocol      = "tcp"
         }
       ]
 
       environment = [
+        { name = "NODE_ENV", value = "production" },
+        { name = "HOST", value = "0.0.0.0" },
+        { name = "PORT", value = "1337" },
+
         { name = "DATABASE_CLIENT", value = "postgres" },
         { name = "DATABASE_HOST", value = aws_db_instance.strapi_rds.address },
         { name = "DATABASE_PORT", value = "5432" },
         { name = "DATABASE_NAME", value = "strapi_db" },
         { name = "DATABASE_USERNAME", value = "strapi" },
-        { name = "DATABASE_PASSWORD", value = "strapi123" }
+        { name = "DATABASE_PASSWORD", value = "strapi123" },
+
+        { name = "APP_KEYS", value = "key1,key2,key3,key4" },
+        { name = "API_TOKEN_SALT", value = "api_token_salt_123" },
+        { name = "ADMIN_JWT_SECRET", value = "admin_jwt_secret_123" },
+        { name = "JWT_SECRET", value = "jwt_secret_123" }
       ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/strapi"
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "strapi"
+          awslogs-create-group  = "true"
+        }
+      }
     }
   ])
 }
 
+# =========================
+# ECS Service
+# =========================
 resource "aws_ecs_service" "strapi" {
   name            = "strapi-service"
   cluster         = aws_ecs_cluster.strapi.id
@@ -68,4 +103,9 @@ resource "aws_ecs_service" "strapi" {
     security_groups  = [aws_security_group.ecs_sg.id]
     assign_public_ip = true
   }
+
+  depends_on = [
+    aws_ecs_task_definition.strapi
+  ]
 }
+
