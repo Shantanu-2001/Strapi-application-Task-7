@@ -28,19 +28,22 @@ resource "aws_ecs_task_definition" "strapi" {
   cpu                      = "512"
   memory                   = "1024"
 
-  execution_role_arn = var.ecs_execution_role_arn
-  task_role_arn      = var.ecs_execution_role_arn
+  # ✅ FIX IS HERE
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn      = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode([
     {
       name  = "strapi"
       image = var.docker_image
+
       portMappings = [
         {
           containerPort = 1337
           hostPort      = 1337
         }
       ]
+
       environment = [
         { name = "DATABASE_CLIENT", value = "postgres" },
         { name = "DATABASE_HOST", value = aws_db_instance.strapi_rds.address },
@@ -61,8 +64,8 @@ resource "aws_ecs_service" "strapi" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = data.aws_subnets.default.ids
-    security_groups = [aws_security_group.ecs_sg.id]
+    subnets          = data.aws_subnets.default.ids
+    security_groups  = [aws_security_group.ecs_sg.id]
     assign_public_ip = true
   }
 }
