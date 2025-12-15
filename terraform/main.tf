@@ -9,10 +9,9 @@ terraform {
   required_version = ">= 1.3.0"
 
   backend "s3" {
-    bucket         = "shantanu-terraform-state"
+    bucket         = "shantanu-rana-terraform-state"
     key            = "terraform/state"
     region         = "ap-south-1"
-    dynamodb_table = "terraform-lock-table-shantanu"
   }
 }
 
