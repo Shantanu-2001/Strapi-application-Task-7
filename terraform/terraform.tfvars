@@ -1,5 +1,5 @@
-aws_region       = "ap-south-1"
-instance_type    = "t2.micro" # free tier
-key_name         = "strapi-shantanu"
-docker_image     = "shantanu2001/strapi-app:latest"
-allowed_ssh_cidr = "0.0.0.0/0"
+aws_region = "ap-south-1"
+
+docker_image = "123456789012.dkr.ecr.ap-south-1.amazonaws.com/strapi:latest"
+
+ecs_execution_role_arn = "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
