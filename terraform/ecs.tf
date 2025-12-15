@@ -1,52 +1,37 @@
-resource "aws_ecs_task_definition" "strapi" {
-  family                   = "strapi-task"
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = "512"
-  memory                   = "1024"
+resource "aws_db_subnet_group" "strapi_db_subnet_group" {
+  name       = "strapi-db-subnet-group-shantanu"
+  subnet_ids = data.aws_subnets.default.ids
+}
 
-  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn      = aws_iam_role.ecs_task_role.arn
+resource "aws_security_group" "strapi_rds_sg" {
+  name   = "strapi-rds-sg"
+  vpc_id = data.aws_vpc.default.id
 
-  container_definitions = jsonencode([
-    {
-      name  = "strapi"
-      image = var.docker_image
+  ingress {
+    from_port                = 5432
+    to_port                  = 5432
+    protocol                 = "tcp"
+    source_security_group_id = aws_security_group.ecs_sg.id
+  }
 
-      portMappings = [
-        {
-          containerPort = 1337
-          protocol      = "tcp"
-        }
-      ]
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
 
-      environment = [
-        { name = "NODE_ENV", value = "production" },
-        { name = "HOST", value = "0.0.0.0" },
-        { name = "PORT", value = "1337" },
+resource "aws_db_instance" "strapi_rds" {
+  identifier          = "strapi-db"
+  engine              = "postgres"
+  instance_class      = "db.t3.micro"
+  allocated_storage   = 20
+  username            = "strapi"
+  password            = "strapi123"
+  db_name             = "strapi_db"
+  skip_final_snapshot = true
 
-        { name = "DATABASE_CLIENT", value = "postgres" },
-        { name = "DATABASE_HOST", value = aws_db_instance.strapi_rds.address },
-        { name = "DATABASE_PORT", value = "5432" },
-        { name = "DATABASE_NAME", value = "strapi_db" },
-        { name = "DATABASE_USERNAME", value = "strapi" },
-        { name = "DATABASE_PASSWORD", value = "strapi123" },
-
-        { name = "APP_KEYS", value = "key1,key2,key3,key4" },
-        { name = "API_TOKEN_SALT", value = "api_token_salt_123" },
-        { name = "ADMIN_JWT_SECRET", value = "admin_jwt_secret_123" },
-        { name = "JWT_SECRET", value = "jwt_secret_123" }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = "/ecs/strapi"
-          awslogs-region        = var.aws_region
-          awslogs-stream-prefix = "strapi"
-          awslogs-create-group  = "true"
-        }
-      }
-    }
-  ])
+  db_subnet_group_name   = aws_db_subnet_group.strapi_db_subnet_group.name
+  vpc_security_group_ids = [aws_security_group.strapi_rds_sg.id]
 }
