@@ -15,16 +15,16 @@ terraform {
   }
 }
 
-# -------------------------
-# Provider
-# -------------------------
+# =========================
+# PROVIDER
+# =========================
 provider "aws" {
   region = var.aws_region
 }
 
-# -------------------------
-# Data
-# -------------------------
+# =========================
+# DATA
+# =========================
 data "aws_caller_identity" "current" {}
 
 data "aws_vpc" "default" {
@@ -38,44 +38,25 @@ data "aws_subnets" "default" {
   }
 }
 
-# =========================================================
-# IAM — ECS ROLES
-# =========================================================
-
+# =========================
+# IAM ROLES FOR ECS
+# =========================
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "strapi-ecs-task-execution-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
-      Action = "sts:AssumeRole"
+      Effect    = "Allow"
+      Action    = "sts:AssumeRole"
       Principal = { Service = "ecs-tasks.amazonaws.com" }
     }]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
+resource "aws_iam_role_policy_attachment" "ecs_exec_policy" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-resource "aws_iam_role_policy" "ecs_task_execution_cloudwatch" {
-  name = "strapi-ecs-cloudwatch-policy"
-  role = aws_iam_role.ecs_task_execution_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ]
-      Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/ecs/*"
-    }]
-  })
 }
 
 resource "aws_iam_role" "ecs_task_role" {
@@ -84,16 +65,16 @@ resource "aws_iam_role" "ecs_task_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
-      Action = "sts:AssumeRole"
+      Effect    = "Allow"
+      Action    = "sts:AssumeRole"
       Principal = { Service = "ecs-tasks.amazonaws.com" }
     }]
   })
 }
 
-# =========================================================
+# =========================
 # ECS CLUSTER
-# =========================================================
+# =========================
 resource "aws_ecs_cluster" "strapi" {
   name = "strapi-cluster-shantanu"
 
@@ -103,11 +84,11 @@ resource "aws_ecs_cluster" "strapi" {
   }
 }
 
-# =========================================================
-# ECS SECURITY GROUP
-# =========================================================
+# =========================
+# SECURITY GROUP (ECS)
+# =========================
 resource "aws_security_group" "ecs_sg" {
-  name   = "strapi-ecs-sg-shantanu"
+  name   = "strapi-ecs-sg"
   vpc_id = data.aws_vpc.default.id
 
   ingress {
@@ -125,32 +106,25 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-# =========================================================
+# =========================
 # CLOUDWATCH LOG GROUP
-# =========================================================
+# =========================
 resource "aws_cloudwatch_log_group" "strapi" {
   name              = "/ecs/strapi"
   retention_in_days = 7
 }
 
-# =========================================================
-# RDS
-# =========================================================
-resource "aws_db_subnet_group" "strapi_db_subnet_group" {
-  name       = "strapi-db-subnet-group-shantanu"
+# =========================
+# RDS (POSTGRES)
+# =========================
+resource "aws_db_subnet_group" "strapi" {
+  name       = "strapi-db-subnet-group"
   subnet_ids = data.aws_subnets.default.ids
 }
 
-resource "aws_security_group" "strapi_rds_sg" {
+resource "aws_security_group" "rds_sg" {
   name   = "strapi-rds-sg"
   vpc_id = data.aws_vpc.default.id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
 
 resource "aws_security_group_rule" "ecs_to_rds" {
@@ -158,77 +132,83 @@ resource "aws_security_group_rule" "ecs_to_rds" {
   from_port                = 5432
   to_port                  = 5432
   protocol                 = "tcp"
-  security_group_id        = aws_security_group.strapi_rds_sg.id
+  security_group_id        = aws_security_group.rds_sg.id
   source_security_group_id = aws_security_group.ecs_sg.id
 }
 
-resource "aws_db_instance" "strapi_rds" {
-  identifier          = "strapi-db"
-  engine              = "postgres"
-  instance_class      = "db.t3.micro"
-  allocated_storage   = 20
-  username            = "strapi"
-  password            = "strapi123"
-  db_name             = "strapi_db"
-  skip_final_snapshot = true
-
-  db_subnet_group_name   = aws_db_subnet_group.strapi_db_subnet_group.name
-  vpc_security_group_ids = [aws_security_group.strapi_rds_sg.id]
+resource "aws_db_instance" "strapi" {
+  identifier             = "strapi-db"
+  engine                 = "postgres"
+  instance_class         = "db.t3.micro"
+  allocated_storage      = 20
+  username               = "strapi"
+  password               = "strapi123"
+  db_name                = "strapi_db"
+  skip_final_snapshot    = true
+  db_subnet_group_name   = aws_db_subnet_group.strapi.name
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]
 }
 
-# =========================================================
-# ECS TASK DEFINITION (SSL FIX INCLUDED)
-# =========================================================
+# =========================
+# ECS TASK DEFINITION (FIXED)
+# =========================
 resource "aws_ecs_task_definition" "strapi" {
   family                   = "strapi-task"
-  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
   cpu                      = "512"
   memory                   = "1024"
 
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn      = aws_iam_role.ecs_task_role.arn
 
-  container_definitions = jsonencode([{
-    name  = "strapi"
-    image = var.docker_image
+  container_definitions = jsonencode([
+    {
+      name  = "strapi"
+      image = var.docker_image
 
-    portMappings = [{
-      containerPort = 1337
-      protocol      = "tcp"
-    }]
+      portMappings = [{
+        containerPort = 1337
+        protocol      = "tcp"
+      }]
 
-    environment = [
-      { name = "NODE_ENV", value = "production" },
-      { name = "HOST", value = "0.0.0.0" },
-      { name = "PORT", value = "1337" },
+      environment = [
+        { name = "NODE_ENV", value = "production" },
+        { name = "HOST", value = "0.0.0.0" },
+        { name = "PORT", value = "1337" },
 
-      { name = "DATABASE_CLIENT", value = "postgres" },
-      { name = "DATABASE_HOST", value = aws_db_instance.strapi_rds.address },
-      { name = "DATABASE_PORT", value = "5432" },
-      { name = "DATABASE_NAME", value = "strapi_db" },
-      { name = "DATABASE_USERNAME", value = "strapi" },
-      { name = "DATABASE_PASSWORD", value = "strapi123" },
+        { name = "DATABASE_CLIENT", value = "postgres" },
+        { name = "DATABASE_HOST", value = aws_db_instance.strapi.address },
+        { name = "DATABASE_PORT", value = "5432" },
+        { name = "DATABASE_NAME", value = "strapi_db" },
+        { name = "DATABASE_USERNAME", value = "strapi" },
+        { name = "DATABASE_PASSWORD", value = "strapi123" },
 
-      # REQUIRED FOR AWS RDS
-      { name = "DATABASE_SSL", value = "true" },
-      { name = "DATABASE_SSL_REJECT_UNAUTHORIZED", value = "false" }
-    ]
+        # 🔴 CRITICAL FIX (THIS STOPS THE CRASH)
+        { name = "DATABASE_SSL", value = "true" },
+        { name = "DATABASE_SSL__REJECT_UNAUTHORIZED", value = "false" },
 
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        awslogs-group         = aws_cloudwatch_log_group.strapi.name
-        awslogs-region        = var.aws_region
-        awslogs-stream-prefix = "strapi"
+        { name = "APP_KEYS", value = "key1,key2,key3,key4" },
+        { name = "API_TOKEN_SALT", value = "api_token_salt_123" },
+        { name = "ADMIN_JWT_SECRET", value = "admin_jwt_secret_123" },
+        { name = "JWT_SECRET", value = "jwt_secret_123" }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.strapi.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "strapi"
+        }
       }
     }
-  }])
+  ])
 }
 
-# =========================================================
+# =========================
 # ECS SERVICE
-# =========================================================
+# =========================
 resource "aws_ecs_service" "strapi" {
   name            = "strapi-service"
   cluster         = aws_ecs_cluster.strapi.id
@@ -243,6 +223,6 @@ resource "aws_ecs_service" "strapi" {
   }
 
   depends_on = [
-    aws_db_instance.strapi_rds
+    aws_db_instance.strapi
   ]
 }
