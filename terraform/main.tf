@@ -39,27 +39,70 @@ data "aws_subnets" "default" {
 }
 
 # =========================================================
-# IAM — ECS TASK EXECUTION ROLE (ONLY ADDITION)
+# IAM — ECS TASK EXECUTION ROLE 
 # =========================================================
 
+# ECS Task Execution Role (REQUIRED)
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "ecsTaskExecutionRole-strapi"
+  name = "strapi-ecs-task-execution-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
+    Statement = [{
+      Effect = "Allow"
+      Action = "sts:AssumeRole"
+      Principal = {
+        Service = "ecs-tasks.amazonaws.com"
       }
-    ]
+    }]
+  })
+
+  tags = {
+    Name = "strapi-ecs-task-execution-role"
+  }
+}
+
+# Attach AWS managed policy (ECR + Logs)
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# Extra CloudWatch Logs permissions (IMPORTANT)
+resource "aws_iam_role_policy" "ecs_task_execution_cloudwatch" {
+  name = "strapi-ecs-cloudwatch-policy"
+  role = aws_iam_role.ecs_task_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ]
+      Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/ecs/*"
+    }]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+# ECS Task Role (Application permissions – future ready)
+resource "aws_iam_role" "ecs_task_role" {
+  name = "strapi-ecs-task-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = "sts:AssumeRole"
+      Principal = {
+        Service = "ecs-tasks.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = {
+    Name = "strapi-ecs-task-role"
+  }
 }
