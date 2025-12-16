@@ -107,14 +107,6 @@ resource "aws_security_group" "ecs_sg" {
 }
 
 # =========================
-# CLOUDWATCH LOG GROUP
-# =========================
-resource "aws_cloudwatch_log_group" "strapi" {
-  name              = "/ecs/strapi"
-  retention_in_days = 7
-}
-
-# =========================
 # RDS (POSTGRES)
 # =========================
 resource "aws_db_subnet_group" "strapi" {
@@ -150,7 +142,7 @@ resource "aws_db_instance" "strapi" {
 }
 
 # =========================
-# ECS TASK DEFINITION (FIXED)
+# ECS TASK DEFINITION (NO CLOUDWATCH)
 # =========================
 resource "aws_ecs_task_definition" "strapi" {
   family                   = "strapi-task"
@@ -184,7 +176,6 @@ resource "aws_ecs_task_definition" "strapi" {
         { name = "DATABASE_USERNAME", value = "strapi" },
         { name = "DATABASE_PASSWORD", value = "strapi123" },
 
-        #  CRITICAL FIX (THIS STOPS THE CRASH)
         { name = "DATABASE_SSL", value = "true" },
         { name = "DATABASE_SSL__REJECT_UNAUTHORIZED", value = "false" },
 
@@ -193,15 +184,6 @@ resource "aws_ecs_task_definition" "strapi" {
         { name = "ADMIN_JWT_SECRET", value = "admin_jwt_secret_123" },
         { name = "JWT_SECRET", value = "jwt_secret_123" }
       ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.strapi.name
-          awslogs-region        = var.aws_region
-          awslogs-stream-prefix = "strapi"
-        }
-      }
     }
   ])
 }
