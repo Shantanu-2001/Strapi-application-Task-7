@@ -88,7 +88,7 @@ resource "aws_ecs_cluster" "strapi" {
 # SECURITY GROUP (ECS)
 # =========================
 resource "aws_security_group" "ecs_sg" {
-  name   = "strapi-ecs-sg"
+  name   = "shantanu-strapi-ecs-sg"
   vpc_id = data.aws_vpc.default.id
 
   ingress {
@@ -110,12 +110,12 @@ resource "aws_security_group" "ecs_sg" {
 # RDS (POSTGRES)
 # =========================
 resource "aws_db_subnet_group" "strapi" {
-  name       = "strapi-db-subnet-group"
+  name       = "shantanu-strapi-db-subnet-group"
   subnet_ids = data.aws_subnets.default.ids
 }
 
 resource "aws_security_group" "rds_sg" {
-  name   = "strapi-rds-sg"
+  name   = "shantanu-strapi-rds-sg"
   vpc_id = data.aws_vpc.default.id
 }
 
