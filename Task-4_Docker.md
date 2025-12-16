@@ -6,7 +6,7 @@ Before Docker, developers relied largely on **Virtual Machines (VMs)** to isolat
 
 ### **A. “Works on my machine” Problem **
 
-Applications behaved differently on different systems because of  :
+Applications behaved differently on different systems because of :
 
 * Library mismatch
 * OS differences
