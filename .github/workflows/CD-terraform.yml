@@ -23,7 +23,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # ✅ CRITICAL STEP
+      #  Fetch latest image from ECR (AUTOMATIC)
       - name: Fetch latest image from ECR
         id: ecr
         run: |
@@ -43,6 +43,14 @@ jobs:
         working-directory: terraform
         run: terraform init -input=false
 
+      #  Terraform Plan (Visibility before apply)
+      - name: Terraform Plan
+        working-directory: terraform
+        run: |
+          terraform plan \
+            -var="docker_image=$IMAGE_URI"
+
+      #  Terraform Apply (Manual CD)
       - name: Terraform Apply (Deploy new image)
         working-directory: terraform
         run: |
