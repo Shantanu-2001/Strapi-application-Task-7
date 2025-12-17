@@ -23,7 +23,7 @@ provider "aws" {
 }
 
 # =========================
-# DATA
+# DATA SOURCES
 # =========================
 data "aws_caller_identity" "current" {}
 
@@ -39,7 +39,7 @@ data "aws_subnets" "default" {
 }
 
 # =========================
-# IAM ROLES FOR ECS
+# IAM ROLES (ECS)
 # =========================
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "strapi-ecs-task-execution-role"
@@ -73,7 +73,7 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 
 # =========================
-# ECS CLUSTER
+# ECS CLUSTER (METRICS ENABLED)
 # =========================
 resource "aws_ecs_cluster" "strapi" {
   name = "strapi-cluster-shantanu"
@@ -85,7 +85,7 @@ resource "aws_ecs_cluster" "strapi" {
 }
 
 # =========================
-# SECURITY GROUP (ECS)
+# SECURITY GROUPS
 # =========================
 resource "aws_security_group" "ecs_sg" {
   name   = "shantanu-strapi-ecs-sg"
@@ -162,47 +162,45 @@ resource "aws_ecs_task_definition" "strapi" {
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn      = aws_iam_role.ecs_task_role.arn
 
-  container_definitions = jsonencode([
-    {
-      name  = "strapi"
-      image = var.docker_image
+  container_definitions = jsonencode([{
+    name  = "strapi"
+    image = var.docker_image
 
-      portMappings = [{
-        containerPort = 1337
-        protocol      = "tcp"
-      }]
+    portMappings = [{
+      containerPort = 1337
+      protocol      = "tcp"
+    }]
 
-      environment = [
-        { name = "NODE_ENV", value = "production" },
-        { name = "HOST", value = "0.0.0.0" },
-        { name = "PORT", value = "1337" },
+    environment = [
+      { name = "NODE_ENV", value = "production" },
+      { name = "HOST", value = "0.0.0.0" },
+      { name = "PORT", value = "1337" },
 
-        { name = "DATABASE_CLIENT", value = "postgres" },
-        { name = "DATABASE_HOST", value = aws_db_instance.strapi.address },
-        { name = "DATABASE_PORT", value = "5432" },
-        { name = "DATABASE_NAME", value = "strapi_db" },
-        { name = "DATABASE_USERNAME", value = "strapi" },
-        { name = "DATABASE_PASSWORD", value = "strapi123" },
+      { name = "DATABASE_CLIENT", value = "postgres" },
+      { name = "DATABASE_HOST", value = aws_db_instance.strapi.address },
+      { name = "DATABASE_PORT", value = "5432" },
+      { name = "DATABASE_NAME", value = "strapi_db" },
+      { name = "DATABASE_USERNAME", value = "strapi" },
+      { name = "DATABASE_PASSWORD", value = "strapi123" },
 
-        { name = "DATABASE_SSL", value = "true" },
-        { name = "DATABASE_SSL__REJECT_UNAUTHORIZED", value = "false" },
+      { name = "DATABASE_SSL", value = "true" },
+      { name = "DATABASE_SSL__REJECT_UNAUTHORIZED", value = "false" },
 
-        { name = "APP_KEYS", value = "key1,key2,key3,key4" },
-        { name = "API_TOKEN_SALT", value = "api_token_salt_123" },
-        { name = "ADMIN_JWT_SECRET", value = "admin_jwt_secret_123" },
-        { name = "JWT_SECRET", value = "jwt_secret_123" }
-      ]
+      { name = "APP_KEYS", value = "key1,key2,key3,key4" },
+      { name = "API_TOKEN_SALT", value = "api_token_salt_123" },
+      { name = "ADMIN_JWT_SECRET", value = "admin_jwt_secret_123" },
+      { name = "JWT_SECRET", value = "jwt_secret_123" }
+    ]
 
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.strapi.name
-          awslogs-region        = var.aws_region
-          awslogs-stream-prefix = "strapi"
-        }
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.strapi.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "strapi"
       }
     }
-  ])
+  }])
 }
 
 # =========================
@@ -221,82 +219,68 @@ resource "aws_ecs_service" "strapi" {
     assign_public_ip = true
   }
 
-  depends_on = [
-    aws_db_instance.strapi
-  ]
+  depends_on = [aws_db_instance.strapi]
 }
 
 # =========================
-# CLOUDWATCH DASHBOARD (OPTIONAL)
+# CLOUDWATCH DASHBOARD (OPTIONAL PART)
 # =========================
-resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
+resource "aws_cloudwatch_dashboard" "ecs_dashboard" {
   dashboard_name = "strapi-ecs-dashboard-shantanu"
 
   dashboard_body = jsonencode({
     widgets = [
       {
         type = "metric"
+        x = 0
+        y = 0
         width = 12
         height = 6
         properties = {
+          metrics = [[ "AWS/ECS", "CPUUtilization", "ClusterName", aws_ecs_cluster.strapi.name ]]
           title = "ECS CPU Utilization"
-          metrics = [
-            ["AWS/ECS", "CPUUtilization", "ClusterName", aws_ecs_cluster.strapi.name, "ServiceName", aws_ecs_service.strapi.name]
-          ]
-          period = 300
-          stat   = "Average"
-          region = var.aws_region
+          stat  = "Average"
         }
       },
       {
         type = "metric"
+        x = 12
+        y = 0
         width = 12
         height = 6
         properties = {
+          metrics = [[ "AWS/ECS", "MemoryUtilization", "ClusterName", aws_ecs_cluster.strapi.name ]]
           title = "ECS Memory Utilization"
+          stat  = "Average"
+        }
+      },
+      {
+        type = "metric"
+        x = 0
+        y = 6
+        width = 12
+        height = 6
+        properties = {
+          metrics = [[ "AWS/ECS", "RunningTaskCount", "ClusterName", aws_ecs_cluster.strapi.name ]]
+          title = "ECS Running Task Count"
+          stat  = "Average"
+        }
+      },
+      {
+        type = "metric"
+        x = 12
+        y = 6
+        width = 12
+        height = 6
+        properties = {
           metrics = [
-            ["AWS/ECS", "MemoryUtilization", "ClusterName", aws_ecs_cluster.strapi.name, "ServiceName", aws_ecs_service.strapi.name]
+            [ "AWS/ECS", "NetworkRxBytes", "ClusterName", aws_ecs_cluster.strapi.name ],
+            [ "AWS/ECS", "NetworkTxBytes", "ClusterName", aws_ecs_cluster.strapi.name ]
           ]
-          period = 300
-          stat   = "Average"
-          region = var.aws_region
+          title = "ECS Network In / Out"
+          stat  = "Sum"
         }
       }
     ]
   })
-}
-
-# =========================
-# CLOUDWATCH ALARMS (OPTIONAL)
-# =========================
-resource "aws_cloudwatch_metric_alarm" "high_cpu" {
-  alarm_name          = "strapi-high-cpu"
-  comparison_operator = "GreaterThanThreshold"
-  threshold           = 70
-  evaluation_periods  = 2
-  period              = 300
-  statistic           = "Average"
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ECS"
-
-  dimensions = {
-    ClusterName = aws_ecs_cluster.strapi.name
-    ServiceName = aws_ecs_service.strapi.name
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "high_memory" {
-  alarm_name          = "strapi-high-memory"
-  comparison_operator = "GreaterThanThreshold"
-  threshold           = 75
-  evaluation_periods  = 2
-  period              = 300
-  statistic           = "Average"
-  metric_name         = "MemoryUtilization"
-  namespace           = "AWS/ECS"
-
-  dimensions = {
-    ClusterName = aws_ecs_cluster.strapi.name
-    ServiceName = aws_ecs_service.strapi.name
-  }
 }
