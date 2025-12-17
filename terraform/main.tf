@@ -39,7 +39,7 @@ data "aws_subnets" "default" {
 }
 
 # =========================
-# IAM ROLES FOR ECS
+# IAM ROLES (ECS)
 # =========================
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "strapi-ecs-task-execution-role"
@@ -73,7 +73,7 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 
 # =========================
-# ECS CLUSTER
+# ECS CLUSTER (Metrics Enabled)
 # =========================
 resource "aws_ecs_cluster" "strapi" {
   name = "strapi-cluster-shantanu"
@@ -104,6 +104,14 @@ resource "aws_security_group" "ecs_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+# =========================
+# CLOUDWATCH LOG GROUP
+# =========================
+resource "aws_cloudwatch_log_group" "strapi" {
+  name              = "/ecs/strapi"
+  retention_in_days = 7
 }
 
 # =========================
@@ -142,7 +150,7 @@ resource "aws_db_instance" "strapi" {
 }
 
 # =========================
-# ECS TASK DEFINITION (NO CLOUDWATCH)
+# ECS TASK DEFINITION (WITH LOGS)
 # =========================
 resource "aws_ecs_task_definition" "strapi" {
   family                   = "strapi-task"
@@ -184,6 +192,15 @@ resource "aws_ecs_task_definition" "strapi" {
         { name = "ADMIN_JWT_SECRET", value = "admin_jwt_secret_123" },
         { name = "JWT_SECRET", value = "jwt_secret_123" }
       ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.strapi.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs/strapi"
+        }
+      }
     }
   ])
 }
