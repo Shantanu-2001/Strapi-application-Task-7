@@ -1,6 +1,6 @@
 resource "aws_db_subnet_group" "strapi" {
   name       = "shantanu-strapi-db-subnet-group"
-  subnet_ids = data.aws_subnets.default.ids
+  subnet_ids = data.aws_subnets.public.ids
 }
 
 resource "aws_security_group" "rds_sg" {
