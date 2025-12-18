@@ -36,16 +36,12 @@ resource "aws_ecs_task_definition" "strapi" {
       ]
 
       environment = [
-        # =========================
         # STRAPI CORE
-        # =========================
         { name = "NODE_ENV", value = "production" },
         { name = "HOST", value = "0.0.0.0" },
         { name = "PORT", value = "1337" },
 
-        # =========================
         # DATABASE CONFIG
-        # =========================
         { name = "DATABASE_CLIENT", value = "postgres" },
         { name = "DATABASE_HOST", value = aws_db_instance.strapi.address },
         { name = "DATABASE_PORT", value = "5432" },
@@ -53,13 +49,11 @@ resource "aws_ecs_task_definition" "strapi" {
         { name = "DATABASE_USERNAME", value = "strapi" },
         { name = "DATABASE_PASSWORD", value = "strapi123" },
 
-        # REQUIRED FOR AWS RDS (SSL)
+        # RDS SSL
         { name = "DATABASE_SSL", value = "true" },
         { name = "DATABASE_SSL__REJECT_UNAUTHORIZED", value = "false" },
 
-        # =========================
-        # STRAPI PRODUCTION SECRETS
-        # =========================
+        # STRAPI SECRETS
         { name = "APP_KEYS", value = "key1,key2,key3,key4" },
         { name = "API_TOKEN_SALT", value = "api_token_salt_123" },
         { name = "ADMIN_JWT_SECRET", value = "admin_jwt_secret_123" },
@@ -79,7 +73,7 @@ resource "aws_ecs_task_definition" "strapi" {
 }
 
 # =========================
-# ECS SERVICE (ALB ATTACHED)
+# ECS SERVICE (ALB + PUBLIC IP)
 # =========================
 resource "aws_ecs_service" "strapi" {
   name            = "strapi-service"
@@ -88,7 +82,6 @@ resource "aws_ecs_service" "strapi" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
-  # 🔗 ALB INTEGRATION (TASK-9)
   load_balancer {
     target_group_arn = aws_lb_target_group.strapi.arn
     container_name   = "strapi"
@@ -96,9 +89,9 @@ resource "aws_ecs_service" "strapi" {
   }
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
+    subnets          = data.aws_subnets.public.ids
     security_groups  = [aws_security_group.ecs_sg.id]
-    assign_public_ip = true   # 👈 KEPT ON PURPOSE
+    assign_public_ip = true
   }
 
   depends_on = [
