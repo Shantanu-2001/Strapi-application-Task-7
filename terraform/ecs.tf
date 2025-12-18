@@ -1,3 +1,6 @@
+# =========================
+# ECS CLUSTER
+# =========================
 resource "aws_ecs_cluster" "strapi" {
   name = "strapi-cluster-shantanu"
 
@@ -7,6 +10,9 @@ resource "aws_ecs_cluster" "strapi" {
   }
 }
 
+# =========================
+# ECS TASK DEFINITION
+# =========================
 resource "aws_ecs_task_definition" "strapi" {
   family                   = "strapi-task"
   requires_compatibilities = ["FARGATE"]
@@ -22,22 +28,38 @@ resource "aws_ecs_task_definition" "strapi" {
       name  = "strapi"
       image = var.docker_image
 
-      portMappings = [{
-        containerPort = 1337
-        protocol      = "tcp"
-      }]
+      portMappings = [
+        {
+          containerPort = 1337
+          protocol      = "tcp"
+        }
+      ]
 
       environment = [
+        # =========================
+        # STRAPI ENV
+        # =========================
         { name = "NODE_ENV", value = "production" },
         { name = "HOST", value = "0.0.0.0" },
         { name = "PORT", value = "1337" },
 
+        # =========================
+        # DATABASE CONFIG
+        # =========================
         { name = "DATABASE_CLIENT", value = "postgres" },
         { name = "DATABASE_HOST", value = aws_db_instance.strapi.address },
         { name = "DATABASE_PORT", value = "5432" },
         { name = "DATABASE_NAME", value = "strapi_db" },
         { name = "DATABASE_USERNAME", value = "strapi" },
-        { name = "DATABASE_PASSWORD", value = "strapi123" }
+        { name = "DATABASE_PASSWORD", value = "strapi123" },
+
+        # =========================
+        # STRAPI PRODUCTION SECRETS (REQUIRED)
+        # =========================
+        { name = "APP_KEYS", value = "key1,key2,key3,key4" },
+        { name = "API_TOKEN_SALT", value = "api_token_salt_123" },
+        { name = "ADMIN_JWT_SECRET", value = "admin_jwt_secret_123" },
+        { name = "JWT_SECRET", value = "jwt_secret_123" }
       ]
 
       logConfiguration = {
@@ -52,6 +74,9 @@ resource "aws_ecs_task_definition" "strapi" {
   ])
 }
 
+# =========================
+# ECS SERVICE
+# =========================
 resource "aws_ecs_service" "strapi" {
   name            = "strapi-service"
   cluster         = aws_ecs_cluster.strapi.id
@@ -65,5 +90,7 @@ resource "aws_ecs_service" "strapi" {
     assign_public_ip = true
   }
 
-  depends_on = [aws_db_instance.strapi]
+  depends_on = [
+    aws_db_instance.strapi
+  ]
 }
