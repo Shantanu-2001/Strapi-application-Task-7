@@ -21,16 +21,6 @@ resource "aws_security_group" "alb_sg" {
 }
 
 # =========================
-# SUBNETS FOR ALB (FIX)
-# =========================
-data "aws_subnets" "alb" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
-
-# =========================
 # APPLICATION LOAD BALANCER
 # =========================
 resource "aws_lb" "strapi" {
@@ -39,12 +29,12 @@ resource "aws_lb" "strapi" {
   internal           = false
   security_groups    = [aws_security_group.alb_sg.id]
 
-  # IMPORTANT: Only ONE subnet per AZ
-  subnets = slice(data.aws_subnets.alb.ids, 0, 2)
+  # ONE subnet per AZ
+  subnets = slice(data.aws_subnets.public.ids, 0, 2)
 }
 
 # =========================
-# TARGET GROUP (FARGATE → IP)
+# TARGET GROUP
 # =========================
 resource "aws_lb_target_group" "strapi" {
   name        = "strapi-tg-shantanu"
