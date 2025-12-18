@@ -21,6 +21,21 @@ resource "aws_security_group" "alb_sg" {
 }
 
 # =========================
+# ONE SUBNET PER AZ (FIX)
+# =========================
+data "aws_subnet" "per_az" {
+  for_each = toset(data.aws_subnets.public.ids)
+  id       = each.value
+}
+
+locals {
+  alb_subnets = values({
+    for s in data.aws_subnet.per_az :
+    s.availability_zone => s.id
+  })
+}
+
+# =========================
 # APPLICATION LOAD BALANCER
 # =========================
 resource "aws_lb" "strapi" {
@@ -29,8 +44,7 @@ resource "aws_lb" "strapi" {
   internal           = false
   security_groups    = [aws_security_group.alb_sg.id]
 
-  # ONE subnet per AZ
-  subnets = slice(data.aws_subnets.public.ids, 0, 2)
+  subnets = local.alb_subnets
 }
 
 # =========================
@@ -44,11 +58,11 @@ resource "aws_lb_target_group" "strapi" {
   target_type = "ip"
 
   health_check {
-    path                = "/"
+    path                = "/admin"
     interval            = 30
-    timeout             = 5
+    timeout             = 10
     healthy_threshold   = 2
-    unhealthy_threshold = 2
+    unhealthy_threshold = 5
     matcher             = "200-399"
   }
 }
