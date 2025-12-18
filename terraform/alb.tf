@@ -21,7 +21,7 @@ resource "aws_security_group" "alb_sg" {
 }
 
 # =========================
-# ONE SUBNET PER AZ (FIX)
+# SUBNETS GROUPED BY AZ (FINAL FIX)
 # =========================
 data "aws_subnet" "per_az" {
   for_each = toset(data.aws_subnets.public.ids)
@@ -29,10 +29,13 @@ data "aws_subnet" "per_az" {
 }
 
 locals {
-  alb_subnets = values({
-    for s in data.aws_subnet.per_az :
-    s.availability_zone => s.id
-  })
+  # Group subnets by AZ, then pick the first subnet from each AZ
+  alb_subnets = [
+    for az, subnets in {
+      for s in data.aws_subnet.per_az :
+      s.availability_zone => s.id...
+    } : subnets[0]
+  ]
 }
 
 # =========================
