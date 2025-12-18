@@ -1,8 +1,9 @@
 variable "aws_region" {
-  default = "ap-south-1"
+  description = "AWS region"
+  type        = string
 }
 
 variable "docker_image" {
-  description = "ECR image pushed by CI"
+  description = "Strapi Docker image from ECR"
   type        = string
 }
