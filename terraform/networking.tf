@@ -1,13 +1,9 @@
-# =========================
 # DEFAULT VPC
-# =========================
 data "aws_vpc" "default" {
   default = true
 }
 
-# =========================
-# AVAILABLE SUBNETS (PUBLIC)
-# =========================
+# PUBLIC SUBNETS ONLY (internet-facing)
 data "aws_subnets" "public" {
   filter {
     name   = "vpc-id"
@@ -15,24 +11,21 @@ data "aws_subnets" "public" {
   }
 
   filter {
-    name   = "state"
-    values = ["available"]
+    name   = "map-public-ip-on-launch"
+    values = ["true"]
   }
 }
 
-# =========================
 # ECS SECURITY GROUP
-# =========================
 resource "aws_security_group" "ecs_sg" {
   name   = "shantanu-strapi-ecs-sg"
   vpc_id = data.aws_vpc.default.id
 
-  # ❗ Required so ECS task can still be accessed via public IP (Task-8 behavior)
   ingress {
     from_port   = 1337
     to_port     = 1337
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"] # keeps ECS public IP access
   }
 
   egress {
@@ -43,9 +36,7 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-# =========================
-# ALB → ECS ALLOW RULE (CRITICAL)
-# =========================
+# ALB → ECS
 resource "aws_security_group_rule" "alb_to_ecs" {
   type                     = "ingress"
   from_port                = 1337
